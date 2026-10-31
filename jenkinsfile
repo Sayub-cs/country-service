@@ -3,13 +3,14 @@ pipeline {
     tools {
         maven 'M2_HOME'
     }
-		stage('Checkout code') {
-		    steps {
-		        git branch: 'main',
-		            credentialsId: 'github-creds',
-		            url: 'https://github.com/Sayub-cs/country-service.git'
-		    }
-		}
+    stages {
+        stage('Checkout code') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github-acess',
+                    url: 'https://github.com/Sayub-cs/country-service.git'
+            }
+        }
 
         stage('Compile, test code, package') {
             steps {
