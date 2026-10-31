@@ -1,0 +1,80 @@
+pipeline {
+    agent any
+    tools {
+        maven 'M2_HOME'
+    }
+    stages {
+        stage('Checkout code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Sayub-cs/country-service.git'
+            }
+        }
+
+        stage('Compile, test code, package') {
+            steps {
+                sh 'mvn clean install'
+            }
+            post {
+                success {
+                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv(installationName: 'MySonarQubeServer', credentialsId: 'sonarqubePWD') {
+                    sh "mvn sonar:sonar -Dsonar.projectKey=country-service -Dsonar.projectName=country-service"
+                }
+            }
+        }
+
+        stage('Deploy JAR to Nexus') {
+            steps {
+                sh 'mvn deploy -DskipTests'
+            }
+        }
+
+        stage('Upload reports to Nexus') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'nexus-creds',
+                                 usernameVariable: 'NEXUS_USER',
+                                 passwordVariable: 'NEXUS_PASS')]) {
+                    sh '''
+                      zip -r jacoco-report.zip target/site/jacoco
+                      zip -r surefire-reports.zip target/surefire-reports
+
+                      curl -f -sS -w "jacoco HTTP %{http_code}\\n" -u $NEXUS_USER:$NEXUS_PASS --upload-file jacoco-report.zip \
+                        http://localhost:8081/repository/reports/country-service/${BUILD_NUMBER}/jacoco-report.zip
+
+                      curl -f -sS -w "surefire HTTP %{http_code}\\n" -u $NEXUS_USER:$NEXUS_PASS --upload-file surefire-reports.zip \
+                        http://localhost:8081/repository/reports/country-service/${BUILD_NUMBER}/surefire-reports.zip
+                    '''
+                }
+            }
+        }
+
+        stage('Build Docker image') {
+            steps {
+                sh 'docker build . -t my-country-service:$BUILD_NUMBER'
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([string(credentialsId: 'dockerhub-pwd', variable: 'dockerhubpwd')]) {
+                    sh 'echo $dockerhubpwd | docker login -u Sayubb --password-stdin'
+                }
+                sh 'docker tag my-country-service:$BUILD_NUMBER sayubb/my-country-service:$BUILD_NUMBER'
+                sh 'docker push sayubb/my-country-service:$BUILD_NUMBER'
+            }
+        }
+
+        stage('Deploy micro-service') {
+            steps {
+                sh 'docker rm -f country-service || true'
+                sh 'docker run -d --name country-service -p 8082:8082 my-country-service:$BUILD_NUMBER'
+            }
+        }
+    }
+}
