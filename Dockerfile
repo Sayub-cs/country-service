@@ -1,4 +1,5 @@
-FROM openjdk : 21-oracle
-2 VOLUME /tmp
-3 COPY target/ *. jar app.jar
-4 ENTRYPOINT ["java","-jar", "/app.jar"]
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY target/country-service-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE 8082
+ENTRYPOINT ["java", "-jar", "app.jar"]
