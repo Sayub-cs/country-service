@@ -65,7 +65,7 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 withCredentials([string(credentialsId: 'dockerhub-paswd', variable: 'dockerhubpwd')]) {
-                    sh 'echo $dockerhubpwd | docker login -u Sayubb --password-stdin'
+                    sh 'echo $dockerhubpwd | docker login -u sayubb --password-stdin'
                 }
                 sh 'docker tag my-country-service:$BUILD_NUMBER sayubb/my-country-service:$BUILD_NUMBER'
                 sh 'docker push sayubb/my-country-service:$BUILD_NUMBER'
