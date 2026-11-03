@@ -1,56 +1,61 @@
 ---
 - name: Build and Deploy Docker Image to Kubernetes
-  hosts: localhost # Or your build/deployment server
+  hosts: localhost
   connection: local
+  gather_facts: false
 
   vars:
     image_name: my-country-service
-    image_tag: 22
+    image_tag: v1                       # overridden by -e image_tag=$BUILD_NUMBER
     dockerfile_path: './'
-    docker_registry_username: "sayubb"   # Saisir votre accès
-    docker_registry_password: "ayoub@13033071"   # Saisir votre accès
+    docker_registry_username: "sayubb"
+    docker_registry_password: ""        # passed at runtime: -e docker_registry_password=...
+    kubeconfig_path: "{{ lookup('env', 'KUBECONFIG') | default('~/.kube/config', true) }}"
+    full_image: "{{ docker_registry_username }}/{{ image_name }}:{{ image_tag }}"
 
   tasks:
     - name: Log in to Docker Hub
-      community.general.docker_login:
+      community.docker.docker_login:
         username: "{{ docker_registry_username }}"
-        password: "{{ docker_registry_password }}" # Use environment variable for password
-        # Or use Ansible Vault for sensitive data
-        # password: "{{ docker_hub_password_from_vault }}"
-        reauthorize: yes # Re-authenticate even if credentials exist
+        password: "{{ docker_registry_password }}"
+        reauthorize: yes
+      no_log: true
+      register: login_result
+      retries: 3
+      delay: 10
+      until: login_result is succeeded
 
     - name: Build Docker image
-      docker_image:
-        build:
-          path: "{{dockerfile_path }}"
-        name: "{{ docker_registry_username }}/{{ image_name }}:{{ image_tag }}"
-        source: build
-        state: present
+      community.docker.docker_image:
+        name: "{{ docker_registry_username }}/{{ image_name }}"
         tag: "{{ image_tag }}"
+        source: build
+        build:
+          path: "{{ dockerfile_path }}"
+        state: present
 
+    # Docker Hub sometimes returns 502 Bad Gateway: retry automatically
     - name: Push the Docker image to Docker Hub
-      docker_image:
-        name: "{{ docker_registry_username }}/{{ image_name }}:{{ image_tag }}"
+      community.docker.docker_image:
+        name: "{{ docker_registry_username }}/{{ image_name }}"
         tag: "{{ image_tag }}"
         push: yes
         source: local
-
-    - name: Pull Docker image (optional, for verification or on target nodes)
-      docker_image:
-        name: "{{ docker_registry_username }}/{{ image_name }}:{{ image_tag }}"
-        tag: "{{ image_tag }}"
-        source: pull
+      register: push_result
+      retries: 5
+      delay: 15
+      until: push_result is succeeded
 
     - name: Apply Kubernetes Deployment
       kubernetes.core.k8s:
         state: present
         namespace: jenkins
-        src: deployment.yaml
-        kubeconfig: config # Path to your kubeconfig file
+        template: deployment.yaml
+        kubeconfig: "{{ kubeconfig_path }}"
 
     - name: Apply Kubernetes Service
       kubernetes.core.k8s:
         state: present
         namespace: jenkins
         src: service.yaml
-        kubeconfig: config
+        kubeconfig: "{{ kubeconfig_path }}"
