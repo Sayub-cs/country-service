@@ -90,6 +90,7 @@ pipeline {
         // }
 
         stage('Deploy with Ansible') {
+	    		options { timeout(time: 5, unit: 'MINUTES') }
 	    		steps {
 		        withCredentials([
 		            string(credentialsId: 'ansible_vault_pass', variable: 'VAULT_PASS'),
