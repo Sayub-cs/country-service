@@ -6,12 +6,11 @@
   vars_files:
     - vault.yml
 
-  vars:
-    image_name: my-country-service
+	vars:
+	image_name: my-country-service
 	image_tag: "{{ build_number | default('latest') }}"
-    dockerfile_path: './'
-    docker_registry_username: "sayubb"
-
+	dockerfile_path: './'
+	docker_registry_username: "sayubb"
   tasks:
     - name: Log in to Docker Hub
       community.general.docker_login:
