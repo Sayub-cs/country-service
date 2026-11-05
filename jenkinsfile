@@ -90,21 +90,23 @@ pipeline {
         // }
 
         stage('Deploy with Ansible') {
-            steps {
-                withCredentials([string(credentialsId: 'ansible_vault_pass', variable: 'VAULT_PASS')]) {
-                    // Run the Ansible playbook with the Vault password and the build number as image tag
-                    sh '''
-                        trap 'rm -f vault_pass.txt' EXIT
-                        echo "$VAULT_PASS" > vault_pass.txt
-
-                        sed -i "s|IMAGE_TAG|${BUILD_NUMBER}|" deployment.yaml
-
-                        ansible-playbook playbookCICD.yml \
-                          --vault-password-file vault_pass.txt \
-                          -e build_number=${BUILD_NUMBER}
-                    '''
-                }
-            }
-        }
+	    		steps {
+		        withCredentials([
+		            string(credentialsId: 'ansible_vault_pass', variable: 'VAULT_PASS'),
+		            file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG_FILE')
+		        ]) {
+		            sh '''
+		                trap 'rm -f vault_pass.txt' EXIT
+		                echo "$VAULT_PASS" > vault_pass.txt
+		                sed -i "s|IMAGE_TAG|${BUILD_NUMBER}|" deployment.yaml
+		
+		                ansible-playbook playbookCICD.yml \
+		                  --vault-password-file vault_pass.txt \
+		                  -e build_number=${BUILD_NUMBER} \
+		                  -e kubeconfig_path=$KUBECONFIG_FILE
+		            '''
+		        }
+		    }
+		}
     }
 }
