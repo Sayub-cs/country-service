@@ -48,7 +48,6 @@
         namespace: jenkins
         src: deployment.yaml
         kubeconfig: "{{ kubeconfig_path }}"
-        request_timeout: 30
 
     - name: Apply Kubernetes Service
       kubernetes.core.k8s:
@@ -56,4 +55,3 @@
         namespace: jenkins
         src: service.yaml
         kubeconfig: "{{ kubeconfig_path }}"
-        request_timeout: 30
