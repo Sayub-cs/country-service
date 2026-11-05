@@ -6,11 +6,12 @@
   vars_files:
     - vault.yml
 
-	vars:
-	image_name: my-country-service
-	image_tag: "{{ build_number | default('latest') }}"
-	dockerfile_path: './'
-	docker_registry_username: "sayubb"
+  vars:
+    image_name: my-country-service
+    image_tag: "{{ build_number | default('latest') }}"
+    dockerfile_path: './'
+    docker_registry_username: "sayubb"
+
   tasks:
     - name: Log in to Docker Hub
       community.general.docker_login:
@@ -41,18 +42,18 @@
         tag: "{{ image_tag }}"
         source: pull
 
-	- name: Apply Kubernetes Deployment
-	  kubernetes.core.k8s:
-	    state: present
-	    namespace: jenkins
-	    src: deployment.yaml
-	    kubeconfig: "{{ kubeconfig_path }}"
-	    request_timeout: 30
+    - name: Apply Kubernetes Deployment
+      kubernetes.core.k8s:
+        state: present
+        namespace: jenkins
+        src: deployment.yaml
+        kubeconfig: "{{ kubeconfig_path }}"
+        request_timeout: 30
 
-	- name: Apply Kubernetes Service
-	  kubernetes.core.k8s:
-	    state: present
-	    namespace: jenkins
-	    src: service.yaml
-	    kubeconfig: "{{ kubeconfig_path }}"
-	    request_timeout: 30
+    - name: Apply Kubernetes Service
+      kubernetes.core.k8s:
+        state: present
+        namespace: jenkins
+        src: service.yaml
+        kubeconfig: "{{ kubeconfig_path }}"
+        request_timeout: 30
